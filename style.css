@@ -139,7 +139,7 @@ h3 { font-size: 1.02rem; }
 
 p { margin: 0 0 1rem; text-align: justify; hyphens: auto; }
 
-body.appendix p { text-align: left; hyphens: none; }
+body.appendix p:not(.st-michael-prayer) { text-align: left; hyphens: none; }
 
 em { font-style: italic; }
 strong { font-weight: 700; }
