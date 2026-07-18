@@ -1,0 +1,22 @@
+name = "sspx-feedback"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+# Route the Worker on the same zone that proxies GitHub Pages — no CORS needed.
+routes = [
+  { pattern = "caniattendsspx.com/api/*", zone_name = "caniattendsspx.com" }
+]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sspx-feedback"
+database_id = "REPLACE_AFTER_CREATE"   # from: wrangler d1 create sspx-feedback
+
+[[kv_namespaces]]
+binding = "RATE_KV"
+id = "REPLACE_AFTER_CREATE"            # from: wrangler kv namespace create RATE_KV
+
+# Secrets (set via CLI, never committed):
+#   wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put TURNSTILE_SECRET
+#   wrangler secret put ADMIN_KEY
