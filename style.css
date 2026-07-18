@@ -26,6 +26,12 @@ body {
   padding: 2.5rem 1.25rem 1rem;
 }
 
+.dedication-wrap {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
 .dedication-figure {
   float: right;
   width: 40%;
