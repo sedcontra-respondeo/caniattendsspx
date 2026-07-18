@@ -10,11 +10,11 @@ routes = [
 [[d1_databases]]
 binding = "DB"
 database_name = "sspx-feedback"
-database_id = "REPLACE_AFTER_CREATE"   # from: wrangler d1 create sspx-feedback
+database_id = "8ce23fe1-5ef9-4eb3-80b3-5bc7cbb610d2"
 
 [[kv_namespaces]]
 binding = "RATE_KV"
-id = "REPLACE_AFTER_CREATE"            # from: wrangler kv namespace create RATE_KV
+id = "1088ed510f97418c87c6389d07229553"
 
 # Secrets (set via CLI, never committed):
 #   wrangler secret put ANTHROPIC_API_KEY
