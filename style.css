@@ -26,18 +26,73 @@ body {
   padding: 2.5rem 1.25rem 1rem;
 }
 
+.dedication-figure {
+  float: right;
+  width: 40%;
+  max-width: 250px;
+  margin: 1.25rem 0 0.6rem 1.25rem;
+}
+
+.dedication-figure img.page-top-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.dedication-figure figcaption {
+  margin: 0.3rem 0 0;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.dedication-figure.centered {
+  float: none;
+  width: 100%;
+  max-width: 250px;
+  margin: 1.25rem auto 0.6rem;
+}
+
+@media (max-width: 480px) {
+  .dedication-figure {
+    float: none;
+    width: 60%;
+    margin: 1.25rem auto 0.6rem;
+  }
+}
+
+img.page-bottom-image {
+  display: block;
+  max-width: 160px;
+  width: 100%;
+  height: auto;
+  margin: 2.5rem auto 0;
+}
+
+.st-michael-prayer {
+  max-width: var(--max-w);
+  margin: 0.6rem auto 1.5rem;
+  padding: 0 1.25rem;
+  text-align: center;
+  font-style: italic;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 header.site-header {
   text-align: center;
   padding: 1.25rem 1rem 0.75rem;
   border-bottom: 1px solid var(--rule);
 }
 
-header.site-header .kicker {
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+header.site-header .jmj {
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
   color: var(--muted);
   margin: 0 0 0.35rem;
+  text-align: center;
 }
 
 header.site-header a.home-link {
@@ -78,6 +133,8 @@ h3 { font-size: 1.02rem; }
 
 p { margin: 0 0 1rem; text-align: justify; hyphens: auto; }
 
+body.appendix p { text-align: left; hyphens: none; }
+
 em { font-style: italic; }
 strong { font-weight: 700; }
 
@@ -104,6 +161,15 @@ sup a.footnote-ref, sup a { text-decoration: none; }
 .footnotes li { margin-bottom: 0.7rem; }
 .footnotes li p { text-align: left; margin: 0; }
 .footnote-back { margin-left: 0.35rem; }
+
+.return-top {
+  text-align: right;
+  font-size: 0.8rem;
+  font-style: italic;
+  margin: -0.4rem 0 1.4rem;
+}
+
+.return-top a { color: var(--muted); }
 
 footer.site-footer {
   max-width: var(--max-w);
