@@ -6,6 +6,9 @@
  *   GET  /api/admin             — digest of USEFUL comments (requires ?key=ADMIN_KEY)
  *   GET  /api/admin/contacts    — useful comments WITH contact info (requires ?key=ADMIN_KEY)
  *   GET  /api/admin/all         — everything incl. noise, for auditing the classifier
+ *   GET  /api/admin/digest-now  — manually send the weekly digest email immediately (requires ?key=ADMIN_KEY)
+ *
+ * Scheduled: sends the same digest email automatically once a week (see [triggers] in wrangler.toml).
  *
  * Required secrets (wrangler secret put ...):
  *   ANTHROPIC_API_KEY   — Claude API key (server-side only, never exposed)
@@ -15,7 +18,10 @@
  * Required bindings (wrangler.toml):
  *   DB        — D1 database
  *   RATE_KV   — KV namespace for per-IP rate limiting
+ *   SEB       — send_email binding, destination_address = caniattendsspx@gmail.com
  */
+
+import { EmailMessage } from "cloudflare:email";
 
 const MAX_MESSAGE_LEN = 4000;
 const MAX_CONTACT_LEN = 200;
@@ -34,10 +40,20 @@ export default {
     if (url.pathname === "/api/feedback" && request.method === "POST") {
       return handleSubmit(request, env);
     }
+    if (url.pathname === "/api/admin/digest-now") {
+      return handleDigestNow(request, env, url);
+    }
+    if (url.pathname === "/api/admin/test-classify") {
+      return handleTestClassify(request, env, url);
+    }
     if (url.pathname.startsWith("/api/admin")) {
       return handleAdmin(request, env, url);
     }
     return new Response("Not found", { status: 404 });
+  },
+
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runWeeklyDigest(env));
   },
 };
 
@@ -166,7 +182,7 @@ SUBMISSION>>>`;
     }),
   });
 
-  if (!resp.ok) throw new Error(`Anthropic API ${resp.status}`);
+  if (!resp.ok) throw new Error(`Anthropic API ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
   const data = await resp.json();
   const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("").trim();
   const clean = text.replace(/```json|```/g, "").trim();
@@ -181,6 +197,25 @@ SUBMISSION>>>`;
 }
 
 /* ----------------------------------------------------------------- admin */
+
+// TEMPORARY diagnostic route — remove once classifier is confirmed healthy.
+async function handleTestClassify(request, env, url) {
+  const key = url.searchParams.get("key") || "";
+  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  try {
+    const result = await classify(env, {
+      stance: "disagree",
+      article: "1",
+      section: "objection",
+      message: "This is a diagnostic test submission to check the classifier pipeline end to end.",
+    });
+    return json({ ok: true, result });
+  } catch (e) {
+    return json({ ok: false, error: String(e) });
+  }
+}
 
 async function handleAdmin(request, env, url) {
   const key = url.searchParams.get("key") || "";
@@ -242,6 +277,83 @@ ${rows || "<p>No submissions.</p>"}
 </body></html>`;
 
   return new Response(html, { headers: { "Content-Type": "text/html;charset=utf-8", "Cache-Control": "no-store" } });
+}
+
+/* --------------------------------------------------------------- digest */
+
+async function runWeeklyDigest(env) {
+  const { subject, body } = await buildDigest(env);
+  await sendDigestEmail(env, subject, body);
+}
+
+async function handleDigestNow(request, env, url) {
+  const key = url.searchParams.get("key") || "";
+  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  const { subject, body, total } = await buildDigest(env);
+  await sendDigestEmail(env, subject, body);
+  return new Response(
+    `Digest sent to caniattendsspx@gmail.com — ${total} submission(s) from the last 7 days.\nSubject: ${subject}`,
+    { headers: { "Content-Type": "text/plain" } }
+  );
+}
+
+async function buildDigest(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM submissions WHERE created_at >= datetime('now','-7 days') ORDER BY created_at ASC`
+  ).all();
+
+  const surfaced = results.filter(r => r.category === "substantive" || r.category === "encouragement");
+  const threats = results.filter(r => r.category === "threat");
+  const unclassified = results.filter(r => r.category === "unclassified");
+  const noiseCount = results.filter(r => r.category === "hostile-noise").length;
+  const explicitCount = results.filter(r => r.category === "explicit").length;
+
+  const fmt = r =>
+    `[${r.created_at}] Art. ${r.article} · ${r.section} · ${r.stance} · ${r.category}` +
+    (r.has_contact ? `\nContact: ${r.contact}` : "") +
+    (r.summary ? `\nSummary: ${r.summary}` : "") +
+    `\nFull text:\n${r.message}` +
+    (r.reason ? `\n(${r.reason})` : "");
+
+  const body = [
+    `CanIAttendSSPX — Weekly Feedback Digest`,
+    `Covering the last 7 days · ${results.length} total submission(s)`,
+    ``,
+    `=== SUBSTANTIVE / ENCOURAGEMENT (${surfaced.length}) ===`,
+    ``,
+    surfaced.length ? surfaced.map(fmt).join("\n\n---\n\n") : "(none)",
+    ``,
+    `=== THREATS (${threats.length}) — retained for possible reporting, never deleted ===`,
+    ``,
+    threats.length ? threats.map(fmt).join("\n\n---\n\n") : "(none)",
+    ``,
+    `=== UNCLASSIFIED / CLASSIFIER ERRORS (${unclassified.length}) — review manually ===`,
+    ``,
+    unclassified.length ? unclassified.map(fmt).join("\n\n---\n\n") : "(none)",
+    ``,
+    `=== NOISE (not shown) ===`,
+    `hostile-noise: ${noiseCount} · explicit: ${explicitCount}`,
+  ].join("\n");
+
+  const subject = `CanIAttendSSPX weekly digest — ${results.length} submission(s), ${surfaced.length} to review`;
+  return { subject, body, total: results.length };
+}
+
+async function sendDigestEmail(env, subject, body) {
+  const from = "noreply@caniattendsspx.com";
+  const to = "caniattendsspx@gmail.com";
+  const raw =
+    `From: CanIAttendSSPX <${from}>\r\n` +
+    `To: ${to}\r\n` +
+    `Subject: ${subject}\r\n` +
+    `MIME-Version: 1.0\r\n` +
+    `Content-Type: text/plain; charset="UTF-8"\r\n` +
+    `Content-Transfer-Encoding: 8bit\r\n` +
+    `\r\n${body}`;
+  const message = new EmailMessage(from, to, raw);
+  await env.SEB.send(message);
 }
 
 /* ----------------------------------------------------------------- utils */
