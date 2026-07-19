@@ -169,13 +169,31 @@ sup a.footnote-ref, sup a { text-decoration: none; }
 .footnote-back { margin-left: 0.35rem; }
 
 .return-top {
-  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.9rem;
   font-size: 0.8rem;
   font-style: italic;
   margin: -0.4rem 0 1.4rem;
 }
 
+.return-top.split { justify-content: space-between; }
+
 .return-top a { color: var(--muted); }
+.return-top a.jump-link { color: var(--accent); font-size: 0.82rem; }
+
+.xref {
+  margin: -0.4rem 0 1rem;
+}
+
+.jump-link {
+  font-size: 0.82rem;
+  font-style: normal;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.jump-link:hover { text-decoration: underline; }
 
 footer.site-footer {
   max-width: var(--max-w);
